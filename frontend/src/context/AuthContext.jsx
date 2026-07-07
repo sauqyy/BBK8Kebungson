@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import client from "../api/client";
 
 const AuthContext = createContext(null);
@@ -10,6 +10,17 @@ export function AuthProvider({ children }) {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!sessionStorage.getItem("token")) return;
+    client
+      .get("/auth/me")
+      .then(({ data }) => {
+        sessionStorage.setItem("user", JSON.stringify(data));
+        setUser(data);
+      })
+      .catch(() => {});
+  }, []);
 
   async function login(username, password) {
     setLoading(true);
