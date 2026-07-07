@@ -77,7 +77,7 @@ class Category(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(60), nullable=False)
-    type = db.Column(db.String(10), nullable=False)  # 'pemasukan' | 'pengeluaran'
+    type = db.Column(db.String(20), nullable=False)  # 'pemasukan' | 'pengeluaran'
     color = db.Column(db.String(7), nullable=False, default="#6b7280")  # hex, e.g. #1e5631
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -89,7 +89,7 @@ class Transaction(db.Model):
     __tablename__ = "transactions"
 
     id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.String(10), nullable=False)  # 'pemasukan' | 'pengeluaran'
+    type = db.Column(db.String(20), nullable=False)  # 'pemasukan' | 'pengeluaran'
     amount = db.Column(db.Integer, nullable=False)  # stored in Rupiah, no decimals
     description = db.Column(db.String(255), nullable=False)
     category = db.Column(db.String(60), nullable=False)
