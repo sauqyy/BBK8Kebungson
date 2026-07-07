@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --color-brand: #1e5631;
+  --color-brand-dark: #14401f;
+  --color-brand-light: #e8f2ea;
+}
+
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #ffffff;
+  color: #171717;
+}
+
+.font-num {
+  font-family: var(--font-mono);
+}
+
+.category-color-picker .react-colorful {
+  width: 100%;
+  height: 200px;
+}
+
+.category-color-picker .react-colorful__saturation {
+  border-radius: 0.5rem;
+  border-bottom: none;
+}
+
+.category-color-picker .react-colorful__hue {
+  height: 14px;
+  border-radius: 999px;
+  margin-top: 12px;
+}
+
+.category-color-picker .react-colorful__pointer {
+  width: 18px;
+  height: 18px;
+}
