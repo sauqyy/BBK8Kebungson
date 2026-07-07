@@ -1,6 +1,7 @@
 import axios from "axios";
+import { API_BASE_URL } from "../utils/media";
 
-const client = axios.create({ baseURL: "/api" });
+const client = axios.create({ baseURL: `${API_BASE_URL}/api` });
 
 client.interceptors.request.use((config) => {
   const token = sessionStorage.getItem("token");

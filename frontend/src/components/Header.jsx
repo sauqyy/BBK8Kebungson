@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import ProfileModal from "./ProfileModal";
 import CategoryManagerModal from "./CategoryManagerModal";
 import ConnectTelegramModal from "./ConnectTelegramModal";
+import Avatar from "./Avatar";
 
 function TelegramIcon({ className = "w-4 h-4" }) {
   return (
@@ -69,17 +70,7 @@ export default function Header({ groupName = "BBK 8 Kebungson" }) {
                 : "border-transparent hover:bg-neutral-50"
             }`}
           >
-            {user?.avatar_url ? (
-              <img
-                src={user.avatar_url}
-                alt={user.name}
-                className="w-8 h-8 rounded-full object-cover border border-neutral-200"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-brand-light text-brand flex items-center justify-center text-sm font-medium">
-                {user?.initials}
-              </div>
-            )}
+            <Avatar url={user?.avatar_url} initials={user?.initials} size="md" />
             <span className="text-sm font-medium text-neutral-800 truncate max-w-[7rem]">
               {user?.name?.split(" ")[0]}
             </span>

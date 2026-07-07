@@ -1,3 +1,5 @@
+import { resolveMediaUrl } from "../utils/media";
+
 const SIZES = {
   xs: "w-5 h-5 text-[10px]",
   sm: "w-6 h-6 text-xs",
@@ -11,7 +13,7 @@ export default function Avatar({ url, initials, size = "sm" }) {
   if (url) {
     return (
       <img
-        src={url}
+        src={resolveMediaUrl(url)}
         alt={initials || "avatar"}
         className={`${sizeClass} rounded-full object-cover border border-neutral-200 shrink-0`}
       />

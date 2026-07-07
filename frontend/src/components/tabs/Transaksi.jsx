@@ -7,6 +7,7 @@ import ReimbursementConfirmModal from "../ReimbursementConfirmModal";
 import ConfirmModal from "../ConfirmModal";
 import Avatar from "../Avatar";
 import { TrashIcon, PencilIcon } from "../Icons";
+import { resolveMediaUrl } from "../../utils/media";
 
 export default function Transaksi() {
   const { user } = useAuth();
@@ -105,7 +106,7 @@ export default function Transaksi() {
           </span>
           {t.reimbursement_proof_url && (
             <a
-              href={t.reimbursement_proof_url}
+              href={resolveMediaUrl(t.reimbursement_proof_url)}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-brand/10 text-brand hover:bg-brand/20 text-[10px] font-medium transition-colors whitespace-nowrap"
@@ -245,7 +246,7 @@ export default function Transaksi() {
                     <CategoryBadge t={t} />
                     {t.proof_url && (
                       <a
-                        href={t.proof_url}
+                        href={resolveMediaUrl(t.proof_url)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-brand/10 text-brand hover:bg-brand/20 text-[10px] font-medium transition-colors"
@@ -309,7 +310,7 @@ export default function Transaksi() {
                       {t.description}
                       {t.proof_url && (
                         <a
-                          href={t.proof_url}
+                          href={resolveMediaUrl(t.proof_url)}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded bg-brand/10 text-brand hover:bg-brand/20 text-[10px] font-medium transition-colors"

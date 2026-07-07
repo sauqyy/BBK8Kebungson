@@ -2,6 +2,7 @@ import { useState } from "react";
 import client from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useLockBodyScroll } from "../utils/useLockBodyScroll";
+import { resolveMediaUrl } from "../utils/media";
 
 export default function ProfileModal({ onClose, onSaved }) {
   useLockBodyScroll();
@@ -80,7 +81,7 @@ export default function ProfileModal({ onClose, onSaved }) {
           <div className="flex flex-col items-center gap-3">
             {avatarPreview ? (
               <img
-                src={avatarPreview}
+                src={resolveMediaUrl(avatarPreview)}
                 alt="Foto profil"
                 className="w-20 h-20 rounded-full object-cover border border-neutral-200"
               />

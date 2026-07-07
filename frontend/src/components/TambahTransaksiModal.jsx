@@ -4,6 +4,7 @@ import { useLockBodyScroll } from "../utils/useLockBodyScroll";
 import { useAuth } from "../context/AuthContext";
 import { formatWithThousands, stripThousands } from "../utils/format";
 import AddCategoryModal from "./AddCategoryModal";
+import { resolveMediaUrl } from "../utils/media";
 
 const ADD_NEW = "__add_new__";
 
@@ -257,7 +258,7 @@ export default function TambahTransaksiModal({ onClose, onSaved, transaction }) 
             />
             {isEdit && transaction.proof_url && !file && (
               <a
-                href={transaction.proof_url}
+                href={resolveMediaUrl(transaction.proof_url)}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded bg-brand/10 text-brand hover:bg-brand/20 text-xs font-medium transition-colors"

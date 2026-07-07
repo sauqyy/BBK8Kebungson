@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import client from "../api/client";
 import { formatRupiah, formatDate } from "../utils/format";
 import { useLockBodyScroll } from "../utils/useLockBodyScroll";
+import { resolveMediaUrl } from "../utils/media";
 
 export default function MemberDetailModal({ member, onClose }) {
   const [transactions, setTransactions] = useState([]);
@@ -101,7 +102,7 @@ export default function MemberDetailModal({ member, onClose }) {
                   </span>
                   {t.proof_url && (
                     <a
-                      href={t.proof_url}
+                      href={resolveMediaUrl(t.proof_url)}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-brand/10 text-brand hover:bg-brand/20 text-[10px] font-medium transition-colors"
