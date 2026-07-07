@@ -12,6 +12,10 @@ class Config:
     _db_url = os.environ.get("DATABASE_URL", "").strip()
     if not _db_url:
         _db_url = "sqlite:///" + os.path.join(BASE_DIR, "instance", "kas_kkn.db")
+    elif _db_url.startswith("postgres://"):
+        _db_url = _db_url.replace("postgres://", "postgresql+psycopg://", 1)
+    elif _db_url.startswith("postgresql://"):
+        _db_url = _db_url.replace("postgresql://", "postgresql+psycopg://", 1)
     SQLALCHEMY_DATABASE_URI = _db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
