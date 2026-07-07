@@ -19,6 +19,8 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "").strip()
+
     UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB per file
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "pdf"}

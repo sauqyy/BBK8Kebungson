@@ -13,7 +13,12 @@ def create_app():
 
     db.init_app(app)
     jwt.init_app(app)
-    cors.init_app(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+    allowed_origins = [o.strip() for o in app.config["CORS_ALLOWED_ORIGINS"].split(",") if o.strip()]
+    cors.init_app(
+        app,
+        resources={r"/api/*": {"origins": allowed_origins or "*"}},
+        supports_credentials=True,
+    )
 
     from app.routes.auth import auth_bp
     from app.routes.transactions import transactions_bp
