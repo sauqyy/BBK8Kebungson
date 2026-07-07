@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import threading
+import time
 import uuid
 from datetime import date, datetime
 
@@ -33,13 +34,21 @@ def start_telegram_bot(app):
 
     def run():
         asyncio.set_event_loop(asyncio.new_event_loop())
-        application = Application.builder().token(token).build()
-        application.add_handler(CommandHandler("start", cmd_start))
-        application.add_handler(CommandHandler("connect", cmd_connect))
-        application.add_handler(CommandHandler("disconnect", cmd_disconnect))
-        application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-        application.run_polling(stop_signals=None, close_loop=False)
+        while True:
+            try:
+                application = Application.builder().token(token).build()
+                application.add_handler(CommandHandler("start", cmd_start))
+                application.add_handler(CommandHandler("connect", cmd_connect))
+                application.add_handler(CommandHandler("disconnect", cmd_disconnect))
+                application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+                application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+                application.run_polling(stop_signals=None, close_loop=False)
+                break
+            except Exception:
+                logger.exception(
+                    "Bot Telegram berhenti karena error, mencoba lagi dalam 10 detik."
+                )
+                time.sleep(10)
 
     thread = threading.Thread(target=run, daemon=True, name="telegram-bot")
     thread.start()
