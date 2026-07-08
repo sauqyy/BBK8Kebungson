@@ -11,6 +11,7 @@ from datetime import date, datetime
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
+from app import storage
 from app.extensions import db
 from app.models import Category, TelegramDraft, Transaction, User
 
@@ -564,12 +565,21 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photo = update.message.photo[-1]
     tg_file = await context.bot.get_file(photo.file_id)
     filename = f"{uuid.uuid4().hex}.jpg"
-    path = os.path.join(upload_folder, filename)
-    await tg_file.download_to_drive(path)
+    photo_bytes = await tg_file.download_as_bytearray()
 
-    draft["proof_filename"] = filename
-    draft["step"] = "awaiting_confirm"
     with _app.app_context():
+        if storage.r2_configured():
+            storage.upload_bytes(bytes(photo_bytes), filename)
+        else:
+            # Fallback disk lokal (dev, atau kalau R2 belum di-setup). Di
+            # production ini rentan hilang tiap redeploy dan tidak dibagi
+            # antar service (bot jalan di server terpisah dari website).
+            path = os.path.join(upload_folder, filename)
+            with open(path, "wb") as f:
+                f.write(photo_bytes)
+
+        draft["proof_filename"] = filename
+        draft["step"] = "awaiting_confirm"
         _save_draft(chat_id, draft)
     reply_markup = ReplyKeyboardMarkup([["✅ Simpan", "❌ Batal"]], one_time_keyboard=True, resize_keyboard=True)
     await update.message.reply_text(

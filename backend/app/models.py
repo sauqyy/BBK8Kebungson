@@ -1,6 +1,7 @@
 from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.extensions import db
+from app.storage import file_url
 
 
 class Group(db.Model):
@@ -58,7 +59,7 @@ class User(db.Model):
             "email": self.email,
             "role": self.role,
             "initials": self.initials(),
-            "avatar_url": f"/uploads/{self.avatar_filename}" if self.avatar_filename else None,
+            "avatar_url": file_url(self.avatar_filename),
             "telegram_connected": bool(self.telegram_chat_id),
             "telegram_username": self.telegram_username,
         }
@@ -143,17 +144,15 @@ class Transaction(db.Model):
             "description": self.description,
             "category": self.category,
             "date": self.date.isoformat(),
-            "proof_url": f"/uploads/{self.proof_filename}" if self.proof_filename else None,
+            "proof_url": file_url(self.proof_filename),
             "user": {
                 "id": self.user.id,
                 "name": self.user.name,
                 "initials": self.user.initials(),
-                "avatar_url": f"/uploads/{self.user.avatar_filename}" if self.user.avatar_filename else None,
+                "avatar_url": file_url(self.user.avatar_filename),
             },
             "needs_reimbursement": self.needs_reimbursement,
             "reimbursed": self.reimbursed,
             "reimbursed_at": self.reimbursed_at.isoformat() if self.reimbursed_at else None,
-            "reimbursement_proof_url": (
-                f"/uploads/{self.reimbursement_proof_filename}" if self.reimbursement_proof_filename else None
-            ),
+            "reimbursement_proof_url": file_url(self.reimbursement_proof_filename),
         }

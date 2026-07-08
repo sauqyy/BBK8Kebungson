@@ -6,6 +6,8 @@ from functools import wraps
 from flask import current_app, jsonify
 from flask_jwt_extended import get_jwt, verify_jwt_in_request
 
+from app import storage
+
 
 def allowed_file(filename):
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
@@ -19,8 +21,11 @@ def save_upload(file_storage):
         raise ValueError("Tipe file tidak didukung")
     ext = file_storage.filename.rsplit(".", 1)[-1].lower()
     filename = f"{uuid.uuid4().hex}.{ext}"
-    path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-    file_storage.save(path)
+    if storage.r2_configured():
+        storage.upload_bytes(file_storage.read(), filename)
+    else:
+        path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+        file_storage.save(path)
     return filename
 
 

@@ -25,6 +25,16 @@ class Config:
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB per file
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "pdf"}
 
+    # Cloudflare R2 (S3-compatible). Kalau salah satu kosong, upload jatuh
+    # balik ke disk lokal (dev, atau kalau belum di-setup) -- tapi disk lokal
+    # di Render ephemeral (hilang tiap redeploy) dan tidak dibagi antar
+    # service, jadi WAJIB diisi di production supaya foto struk tidak hilang.
+    R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID", "").strip()
+    R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID", "").strip()
+    R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "").strip()
+    R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME", "").strip()
+    R2_PUBLIC_URL = os.environ.get("R2_PUBLIC_URL", "").strip().rstrip("/")
+
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
     MAIL_PORT = int(os.environ.get("MAIL_PORT", "587"))
     MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "true").lower() == "true"
