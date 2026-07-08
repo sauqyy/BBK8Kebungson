@@ -126,6 +126,13 @@ def _start_webhook_mode(app, token, webhook_base):
 
 def process_webhook_update(data, secret_token):
     """Dipanggil dari route Flask saat Telegram POST update baru. Return False kalau ditolak."""
+    print(
+        f"[telegram-debug] got_secret_len={len(secret_token) if secret_token else 0} "
+        f"expected_secret_len={len(_webhook_secret) if _webhook_secret else 0} "
+        f"match={secret_token == _webhook_secret} "
+        f"application_ready={_application is not None} loop_ready={_loop is not None}",
+        flush=True,
+    )
     if not _webhook_secret or secret_token != _webhook_secret:
         return False
     if not _application or not _loop:
