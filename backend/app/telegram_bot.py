@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -77,7 +78,14 @@ def _start_polling_mode(token):
 def _start_webhook_mode(app, token, webhook_base):
     global _application, _loop, _webhook_secret
 
-    _webhook_secret = app.config.get("TELEGRAM_WEBHOOK_SECRET") or uuid.uuid4().hex
+    # Deterministik (turunan dari token), bukan random, supaya tetap sama di
+    # setiap restart/deploy. Kalau berubah tiap boot, update webhook yang
+    # tersimpan di sisi Telegram jadi basi begitu proses lama mati sebelum
+    # sempat re-register (rentan kalau initialize()/set_webhook sempat gagal
+    # network), sehingga semua update ditolak 403 karena secret tidak cocok.
+    _webhook_secret = app.config.get("TELEGRAM_WEBHOOK_SECRET") or hashlib.sha256(
+        f"kkn-telegram-webhook:{token}".encode()
+    ).hexdigest()
     app.config["TELEGRAM_WEBHOOK_SECRET"] = _webhook_secret
     webhook_url = webhook_base.rstrip("/") + "/api/telegram/webhook"
 
