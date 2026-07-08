@@ -3,6 +3,7 @@ import hashlib
 import json
 import logging
 import os
+import sys
 import threading
 import time
 import uuid
@@ -117,7 +118,11 @@ def _start_webhook_mode(app, token, webhook_base):
                         timeout=15,
                     )
                     _application = application
-                    print(f"[telegram-debug] Webhook Telegram terpasang: {webhook_url}", flush=True)
+                    print(
+                        f"[telegram-debug] Webhook Telegram terpasang (pid={os.getpid()}, "
+                        f"module_id={id(sys.modules[__name__])}): {webhook_url}",
+                        flush=True,
+                    )
                     return
                 except Exception as e:
                     print(f"[telegram-debug] attempt {attempt} gagal: {type(e).__name__}: {e}", flush=True)
@@ -134,7 +139,8 @@ def _start_webhook_mode(app, token, webhook_base):
 def process_webhook_update(data, secret_token):
     """Dipanggil dari route Flask saat Telegram POST update baru. Return False kalau ditolak."""
     print(
-        f"[telegram-debug] got_secret_len={len(secret_token) if secret_token else 0} "
+        f"[telegram-debug] pid={os.getpid()} module_id={id(sys.modules[__name__])} "
+        f"got_secret_len={len(secret_token) if secret_token else 0} "
         f"expected_secret_len={len(_webhook_secret) if _webhook_secret else 0} "
         f"match={secret_token == _webhook_secret} "
         f"application_ready={_application is not None} loop_ready={_loop is not None}",
