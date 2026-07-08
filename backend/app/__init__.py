@@ -13,6 +13,7 @@ def create_app():
 
     db.init_app(app)
     jwt.init_app(app)
+
     allowed_origins = [o.strip() for o in app.config["CORS_ALLOWED_ORIGINS"].split(",") if o.strip()]
     cors.init_app(
         app,
@@ -35,6 +36,9 @@ def create_app():
     app.register_blueprint(reports_bp, url_prefix="/api/reports")
     app.register_blueprint(categories_bp, url_prefix="/api/categories")
     app.register_blueprint(telegram_bp, url_prefix="/api/telegram")
+
+    with app.app_context():
+        db.create_all()
 
     from app.telegram_bot import start_telegram_bot
 

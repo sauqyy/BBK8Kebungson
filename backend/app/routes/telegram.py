@@ -1,9 +1,10 @@
 import random
 from datetime import datetime, timedelta
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
 from app.models import User
+from app import telegram_bot
 
 telegram_bp = Blueprint("telegram", __name__)
 
@@ -55,6 +56,16 @@ def status():
             "telegram_username": user.telegram_username,
         }
     )
+
+
+@telegram_bp.post("/webhook")
+def webhook():
+    secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+    data = request.get_json(force=True, silent=True) or {}
+    accepted = telegram_bot.process_webhook_update(data, secret)
+    if not accepted:
+        return jsonify({"error": "unauthorized"}), 403
+    return jsonify({"ok": True})
 
 
 @telegram_bp.post("/disconnect")

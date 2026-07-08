@@ -37,4 +37,11 @@ class Config:
 
     TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     TELEGRAM_BOT_USERNAME = os.environ.get("TELEGRAM_BOT_USERNAME", "").strip()
+    # Render mengisi RENDER_EXTERNAL_URL otomatis di production. Kalau kosong
+    # (mis. dev lokal), bot jatuh balik ke mode polling.
+    TELEGRAM_WEBHOOK_BASE_URL = (
+        os.environ.get("RENDER_EXTERNAL_URL", "").strip()
+        or os.environ.get("TELEGRAM_WEBHOOK_BASE_URL", "").strip()
+    )
+    TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "").strip()
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()

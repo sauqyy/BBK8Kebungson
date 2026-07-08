@@ -19,6 +19,10 @@ def list_transactions():
 
     user_id_filter = request.args.get("user_id")
     if user_id_filter:
+        try:
+            user_id_filter = int(user_id_filter)
+        except ValueError:
+            return jsonify({"error": "user_id tidak valid"}), 400
         query = query.filter(Transaction.user_id == user_id_filter)
 
     pending_only = request.args.get("pending_reimbursement")

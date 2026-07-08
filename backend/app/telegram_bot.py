@@ -11,20 +11,36 @@ from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 from app.extensions import db
-from app.models import Category, Transaction, User
+from app.models import Category, TelegramDraft, Transaction, User
 
 logger = logging.getLogger(__name__)
 
 _app = None
-# chat_id (str) -> draft dict: {step, user_id, amount, description, category, paid_with, proof_filename}
-_conversations = {}
+_application = None
+_loop = None
+_webhook_secret = None
 
 PRIBADI_KEYWORDS = ("pribadi", "sendiri", "saku")
 KAS_KEYWORDS = ("kas", "kantor", "kelompok")
 
 
+def _build_application(token):
+    application = Application.builder().token(token).build()
+    application.add_handler(CommandHandler("start", cmd_start))
+    application.add_handler(CommandHandler("connect", cmd_connect))
+    application.add_handler(CommandHandler("disconnect", cmd_disconnect))
+    application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    return application
+
+
 def start_telegram_bot(app):
-    """Jalankan bot Telegram dengan polling di thread terpisah. No-op kalau token kosong."""
+    """Jalankan bot Telegram. No-op kalau token kosong.
+
+    Pakai mode webhook kalau TELEGRAM_WEBHOOK_BASE_URL tersedia (production di
+    Render) supaya tidak perlu koneksi long-polling yang rentan ConnectTimeout.
+    Jatuh balik ke polling untuk dev lokal.
+    """
     global _app
     _app = app
     token = app.config.get("TELEGRAM_BOT_TOKEN")
@@ -32,27 +48,83 @@ def start_telegram_bot(app):
         logger.warning("TELEGRAM_BOT_TOKEN kosong, bot Telegram tidak dijalankan.")
         return
 
+    webhook_base = app.config.get("TELEGRAM_WEBHOOK_BASE_URL")
+    if webhook_base:
+        _start_webhook_mode(app, token, webhook_base)
+    else:
+        _start_polling_mode(token)
+
+
+def _start_polling_mode(token):
     def run():
         asyncio.set_event_loop(asyncio.new_event_loop())
         while True:
             try:
-                application = Application.builder().token(token).build()
-                application.add_handler(CommandHandler("start", cmd_start))
-                application.add_handler(CommandHandler("connect", cmd_connect))
-                application.add_handler(CommandHandler("disconnect", cmd_disconnect))
-                application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-                application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+                application = _build_application(token)
                 application.run_polling(stop_signals=None, close_loop=False)
                 break
             except Exception:
                 logger.exception(
-                    "Bot Telegram berhenti karena error, mencoba lagi dalam 10 detik."
+                    "Bot Telegram (polling) berhenti karena error, mencoba lagi dalam 10 detik."
                 )
                 time.sleep(10)
 
-    thread = threading.Thread(target=run, daemon=True, name="telegram-bot")
+    thread = threading.Thread(target=run, daemon=True, name="telegram-bot-polling")
     thread.start()
     logger.info("Bot Telegram mulai polling di background thread.")
+
+
+def _start_webhook_mode(app, token, webhook_base):
+    global _application, _loop, _webhook_secret
+
+    _webhook_secret = app.config.get("TELEGRAM_WEBHOOK_SECRET") or uuid.uuid4().hex
+    app.config["TELEGRAM_WEBHOOK_SECRET"] = _webhook_secret
+    webhook_url = webhook_base.rstrip("/") + "/api/telegram/webhook"
+
+    def run():
+        global _application, _loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        _loop = loop
+
+        async def setup():
+            global _application
+            while True:
+                try:
+                    application = _build_application(token)
+                    await application.initialize()
+                    await application.start()
+                    await application.bot.set_webhook(
+                        url=webhook_url,
+                        secret_token=_webhook_secret,
+                        allowed_updates=Update.ALL_TYPES,
+                    )
+                    _application = application
+                    logger.info("Webhook Telegram terpasang: %s", webhook_url)
+                    return
+                except Exception:
+                    logger.exception(
+                        "Gagal memasang webhook Telegram, mencoba lagi dalam 10 detik."
+                    )
+                    await asyncio.sleep(10)
+
+        loop.run_until_complete(setup())
+        loop.run_forever()
+
+    thread = threading.Thread(target=run, daemon=True, name="telegram-bot-webhook")
+    thread.start()
+    logger.info("Bot Telegram mode webhook mulai di background thread.")
+
+
+def process_webhook_update(data, secret_token):
+    """Dipanggil dari route Flask saat Telegram POST update baru. Return False kalau ditolak."""
+    if not _webhook_secret or secret_token != _webhook_secret:
+        return False
+    if not _application or not _loop:
+        return False
+    update = Update.de_json(data, _application.bot)
+    asyncio.run_coroutine_threadsafe(_application.process_update(update), _loop)
+    return True
 
 
 def _rupiah(n):
@@ -151,6 +223,31 @@ async def cmd_disconnect(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def _get_linked_user(chat_id):
     return User.query.filter_by(telegram_chat_id=chat_id).first()
+
+
+def _get_draft(chat_id):
+    row = TelegramDraft.query.get(chat_id)
+    return row.to_dict() if row else None
+
+
+def _save_draft(chat_id, draft):
+    row = TelegramDraft.query.get(chat_id)
+    if not row:
+        row = TelegramDraft(chat_id=chat_id)
+        db.session.add(row)
+    row.step = draft["step"]
+    row.user_id = draft["user_id"]
+    row.amount = draft.get("amount")
+    row.description = draft.get("description")
+    row.category = draft.get("category")
+    row.paid_with = draft.get("paid_with")
+    row.proof_filename = draft.get("proof_filename")
+    db.session.commit()
+
+
+def _delete_draft(chat_id):
+    TelegramDraft.query.filter_by(chat_id=chat_id).delete()
+    db.session.commit()
 
 
 def _summary_text(draft):
@@ -275,7 +372,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        draft = _conversations.get(chat_id)
+        draft = _get_draft(chat_id)
 
         # 1. Menunggu pilihan sumber dana (Uang Sendiri atau Uang Kas)
         if draft and draft["step"] == "awaiting_paid_with":
@@ -291,11 +388,12 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     parse_mode="HTML"
                 )
                 return
-            
+
             # Berhasil memilih sumber dana, lanjut tanya Kategori
             category_names = [c.name for c in Category.query.filter_by(type="pengeluaran").all()]
             draft["step"] = "awaiting_category"
-            
+            _save_draft(chat_id, draft)
+
             # Siapkan keyboard kategori
             keyboard = []
             for i in range(0, len(category_names), 2):
@@ -321,6 +419,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if matched:
                 draft["category"] = matched
                 draft["step"] = "awaiting_proof"
+                _save_draft(chat_id, draft)
                 reply_markup = ReplyKeyboardMarkup([["❌ Tidak Ada Struk"]], one_time_keyboard=True, resize_keyboard=True)
                 await update.message.reply_text(
                     f"📁 Kategori Terpilih: <b>{matched}</b>\n\n"
@@ -346,6 +445,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if "tidak" in text_lower:
                 draft["proof_filename"] = None
                 draft["step"] = "awaiting_confirm"
+                _save_draft(chat_id, draft)
                 reply_markup = ReplyKeyboardMarkup([["✅ Simpan", "❌ Batal"]], one_time_keyboard=True, resize_keyboard=True)
                 await update.message.reply_text(
                     _summary_text(draft),
@@ -365,7 +465,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if draft and draft["step"] == "awaiting_confirm":
             if text_lower in ("ya", "iya", "y", "yes") or "simpan" in text_lower:
                 _save_transaction(draft)
-                del _conversations[chat_id]
+                _delete_draft(chat_id)
                 await update.message.reply_text(
                     "✅ <b>Transaksi Berhasil Disimpan!</b>\n"
                     "Data telah dimasukkan ke database web. Terima kasih!",
@@ -373,7 +473,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     parse_mode="HTML"
                 )
             elif text_lower in ("batal", "tidak", "no", "cancel") or "batal" in text_lower:
-                del _conversations[chat_id]
+                _delete_draft(chat_id)
                 await update.message.reply_text(
                     "❌ <b>Transaksi Dibatalkan.</b>\n"
                     "Draft telah dihapus. Kirim pesan baru kapan saja untuk mulai mencatat kembali.",
@@ -412,7 +512,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "step": "awaiting_paid_with",
     }
 
-    _conversations[chat_id] = new_draft
+    with _app.app_context():
+        _save_draft(chat_id, new_draft)
     reply_markup = ReplyKeyboardMarkup([["💵 Uang Pribadi", "💼 Uang Kas"]], one_time_keyboard=True, resize_keyboard=True)
     await update.message.reply_text(
         f"📝 <b>Pengeluaran Terdeteksi!</b>\n"
@@ -444,7 +545,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        draft = _conversations.get(chat_id)
+        draft = _get_draft(chat_id)
         if not draft or draft["step"] != "awaiting_proof":
             await update.message.reply_text("Tidak ada transaksi yang sedang menunggu bukti struk saat ini.")
             return
@@ -459,6 +560,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     draft["proof_filename"] = filename
     draft["step"] = "awaiting_confirm"
+    with _app.app_context():
+        _save_draft(chat_id, draft)
     reply_markup = ReplyKeyboardMarkup([["✅ Simpan", "❌ Batal"]], one_time_keyboard=True, resize_keyboard=True)
     await update.message.reply_text(
         _summary_text(draft),

@@ -85,6 +85,35 @@ class Category(db.Model):
         return {"id": self.id, "name": self.name, "type": self.type, "color": self.color}
 
 
+class TelegramDraft(db.Model):
+    """Draft transaksi yang sedang diketik lewat bot Telegram, dipersist ke DB
+    (bukan memori proses) supaya percakapan tidak putus kalau backend jalan
+    dengan lebih dari satu worker."""
+
+    __tablename__ = "telegram_drafts"
+
+    chat_id = db.Column(db.String(64), primary_key=True)
+    step = db.Column(db.String(30), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    amount = db.Column(db.Integer, nullable=True)
+    description = db.Column(db.String(255), nullable=True)
+    category = db.Column(db.String(60), nullable=True)
+    paid_with = db.Column(db.String(20), nullable=True)
+    proof_filename = db.Column(db.String(255), nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "step": self.step,
+            "user_id": self.user_id,
+            "amount": self.amount,
+            "description": self.description,
+            "category": self.category,
+            "paid_with": self.paid_with,
+            "proof_filename": self.proof_filename,
+        }
+
+
 class Transaction(db.Model):
     __tablename__ = "transactions"
 
