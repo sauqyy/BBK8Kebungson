@@ -97,23 +97,30 @@ def _start_webhook_mode(app, token, webhook_base):
 
         async def setup():
             global _application
+            attempt = 0
             while True:
+                attempt += 1
+                print(f"[telegram-debug] setup attempt {attempt} mulai", flush=True)
                 try:
                     application = _build_application(token)
-                    await application.initialize()
-                    await application.start()
-                    await application.bot.set_webhook(
-                        url=webhook_url,
-                        secret_token=_webhook_secret,
-                        allowed_updates=Update.ALL_TYPES,
+                    print("[telegram-debug] build ok, calling initialize()", flush=True)
+                    await asyncio.wait_for(application.initialize(), timeout=15)
+                    print("[telegram-debug] initialize() ok, calling start()", flush=True)
+                    await asyncio.wait_for(application.start(), timeout=15)
+                    print("[telegram-debug] start() ok, calling set_webhook()", flush=True)
+                    await asyncio.wait_for(
+                        application.bot.set_webhook(
+                            url=webhook_url,
+                            secret_token=_webhook_secret,
+                            allowed_updates=Update.ALL_TYPES,
+                        ),
+                        timeout=15,
                     )
                     _application = application
-                    logger.info("Webhook Telegram terpasang: %s", webhook_url)
+                    print(f"[telegram-debug] Webhook Telegram terpasang: {webhook_url}", flush=True)
                     return
-                except Exception:
-                    logger.exception(
-                        "Gagal memasang webhook Telegram, mencoba lagi dalam 10 detik."
-                    )
+                except Exception as e:
+                    print(f"[telegram-debug] attempt {attempt} gagal: {type(e).__name__}: {e}", flush=True)
                     await asyncio.sleep(10)
 
         loop.run_until_complete(setup())
