@@ -40,9 +40,12 @@ def create_app():
     with app.app_context():
         db.create_all()
 
-    from app.telegram_bot import start_telegram_bot
-
-    start_telegram_bot(app)
+    # Bot Telegram TIDAK di-start di sini. Di production (gunicorn), app ini
+    # di-import di proses master sebelum fork ke worker; thread background
+    # tidak ikut tersalin ke worker anak (threads tidak survive fork()), jadi
+    # start_telegram_bot() harus dipanggil dari hook post_fork gunicorn
+    # (lihat gunicorn.conf.py) supaya jalan di proses worker yang benar-benar
+    # melayani request. Untuk dev lokal (python run.py), dipanggil dari run.py.
 
     @app.get("/uploads/<path:filename>")
     def uploaded_file(filename):

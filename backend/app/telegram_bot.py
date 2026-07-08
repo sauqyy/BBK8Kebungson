@@ -3,7 +3,6 @@ import hashlib
 import json
 import logging
 import os
-import sys
 import threading
 import time
 import uuid
@@ -98,17 +97,11 @@ def _start_webhook_mode(app, token, webhook_base):
 
         async def setup():
             global _application
-            attempt = 0
             while True:
-                attempt += 1
-                print(f"[telegram-debug] setup attempt {attempt} mulai", flush=True)
                 try:
                     application = _build_application(token)
-                    print("[telegram-debug] build ok, calling initialize()", flush=True)
                     await asyncio.wait_for(application.initialize(), timeout=15)
-                    print("[telegram-debug] initialize() ok, calling start()", flush=True)
                     await asyncio.wait_for(application.start(), timeout=15)
-                    print("[telegram-debug] start() ok, calling set_webhook()", flush=True)
                     await asyncio.wait_for(
                         application.bot.set_webhook(
                             url=webhook_url,
@@ -118,14 +111,10 @@ def _start_webhook_mode(app, token, webhook_base):
                         timeout=15,
                     )
                     _application = application
-                    print(
-                        f"[telegram-debug] Webhook Telegram terpasang (pid={os.getpid()}, "
-                        f"module_id={id(sys.modules[__name__])}): {webhook_url}",
-                        flush=True,
-                    )
+                    print(f"[telegram_bot] Webhook Telegram terpasang: {webhook_url}", flush=True)
                     return
                 except Exception as e:
-                    print(f"[telegram-debug] attempt {attempt} gagal: {type(e).__name__}: {e}", flush=True)
+                    print(f"[telegram_bot] Gagal memasang webhook ({type(e).__name__}: {e}), retry 10 detik.", flush=True)
                     await asyncio.sleep(10)
 
         loop.run_until_complete(setup())
@@ -138,14 +127,6 @@ def _start_webhook_mode(app, token, webhook_base):
 
 def process_webhook_update(data, secret_token):
     """Dipanggil dari route Flask saat Telegram POST update baru. Return False kalau ditolak."""
-    print(
-        f"[telegram-debug] pid={os.getpid()} module_id={id(sys.modules[__name__])} "
-        f"got_secret_len={len(secret_token) if secret_token else 0} "
-        f"expected_secret_len={len(_webhook_secret) if _webhook_secret else 0} "
-        f"match={secret_token == _webhook_secret} "
-        f"application_ready={_application is not None} loop_ready={_loop is not None}",
-        flush=True,
-    )
     if not _webhook_secret or secret_token != _webhook_secret:
         return False
     if not _application or not _loop:
