@@ -1,5 +1,6 @@
 import os
-from flask import Flask, send_from_directory
+from flask import Flask, Response, abort, send_from_directory
+from botocore.exceptions import ClientError
 from app.config import Config, BASE_DIR
 from app.extensions import db, jwt, cors
 
@@ -50,6 +51,21 @@ def create_app():
     @app.get("/uploads/<path:filename>")
     def uploaded_file(filename):
         return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
+    @app.get("/api/files/<path:filename>")
+    def proxied_file(filename):
+        # Selalu di-proxy lewat backend (bukan link r2.dev langsung) supaya
+        # tidak kena blokir ISP terhadap domain *.r2.dev di Indonesia -- lihat
+        # app/storage.py file_url().
+        from app.storage import r2_configured, fetch_bytes
+
+        if not r2_configured():
+            return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+        try:
+            data, content_type = fetch_bytes(filename)
+        except ClientError:
+            abort(404)
+        return Response(data, content_type=content_type)
 
     @app.get("/api/health")
     def health():

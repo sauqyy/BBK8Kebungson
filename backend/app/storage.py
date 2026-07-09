@@ -45,10 +45,19 @@ def upload_bytes(data, filename):
     )
 
 
+def fetch_bytes(filename):
+    """Ambil isi file dari R2. Return (data: bytes, content_type: str)."""
+    obj = _client().get_object(Bucket=current_app.config["R2_BUCKET_NAME"], Key=filename)
+    content_type = obj.get("ContentType") or "application/octet-stream"
+    return obj["Body"].read(), content_type
+
+
 def file_url(filename):
-    """URL publik untuk sebuah file yang sudah diupload (R2 atau /uploads lokal)."""
+    """URL untuk sebuah file yang sudah diupload. Selalu di-proxy lewat
+    backend sendiri (/api/files/<filename>) alih-alih URL publik r2.dev
+    langsung -- ISP di Indonesia banyak yang blokir domain *.r2.dev karena
+    dipakai bersama (shared) oleh semua pengguna R2, jadi butuh VPN kalau
+    diakses langsung. Backend-to-R2 (server ke server) tidak kena blokir ini."""
     if not filename:
         return None
-    if r2_configured():
-        return f"{current_app.config['R2_PUBLIC_URL']}/{filename}"
-    return f"/uploads/{filename}"
+    return f"/api/files/{filename}"
